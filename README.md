@@ -1,10 +1,10 @@
-# 🐾 PetClinic Microservices — GitOps CI/CD Pipeline
+#  PetClinic Microservices — GitOps CI/CD Pipeline
 
 > Automated deployment of a Spring Boot microservices application using **Jenkins**, **Docker Hub**, **ArgoCD**, and **Kubernetes** on **AWS** — provisioned with **Terraform** and configured with **Ansible**.
 
 ---
 
-## 📋 Table of Contents
+##  Table of Contents
 
 - [Overview](#overview)
 - [Architecture](#architecture)
