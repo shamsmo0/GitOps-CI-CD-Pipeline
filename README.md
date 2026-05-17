@@ -69,6 +69,7 @@ Kubernetes rolls out new pods automatically
 
 | Repository | Description |
 |------------|-------------|
+| [Deploy-K8S-Cluster-in-AWS](https://github.com/shamsmo0/Deploy-K8S-Cluster-in-AWS.git) | Infrastructure as Code — Terraform + Ansible to provision K8s cluster on AWS |
 | [petclinic-service-a](https://github.com/shamsmo0/-petclinic-service-a.git) | Spring Boot microservice A — source code, Dockerfile, Jenkinsfile |
 | [petclinic-service-b](https://github.com/shamsmo0/-petclinic-service-b.git) | Spring Boot microservice B — source code, Dockerfile, Jenkinsfile |
 | [petclinic-service-c](https://github.com/shamsmo0/-petclinic-service-c.git) | Spring Boot microservice C — source code, Dockerfile, Jenkinsfile |
@@ -107,8 +108,8 @@ Configures the EC2 instances into a production-ready Kubernetes cluster:
 | Node | Instance Type | Role |
 |------|--------------|------|
 | k8s-master | t3.medium | Control Plane (API Server, etcd, Scheduler, Controller Manager) |
-| k8s-worker-1 | t3.medium | Worker Node |
-| k8s-worker-2 | t3.medium | Worker Node |
+| k8s-worker-1 | t3.small | Worker Node |
+| k8s-worker-2 | t3.small | Worker Node |
 
 **AWS Region:** `us-east-1`
 
@@ -213,7 +214,6 @@ Base image: `eclipse-temurin:17-jre-alpine`
 | Ansible | latest | K8s cluster configuration |
 | AWS EC2 | t3.medium | Cloud compute nodes |
 | Flannel | latest | Kubernetes CNI plugin |
-| Nginx Ingress | latest | HTTP ingress controller |
 | GitHub | — | Source code + GitOps engine |
 | Docker Hub | — | Container image registry |
 
@@ -232,7 +232,8 @@ Base image: `eclipse-temurin:17-jre-alpine`
 ### 1. Provision AWS Infrastructure
 
 ```bash
-cd terraform/
+git clone https://github.com/shamsmo0/Deploy-K8S-Cluster-in-AWS.git
+cd Deploy-K8S-Cluster-in-AWS/terraform/
 terraform init
 terraform plan
 terraform apply
@@ -278,7 +279,8 @@ Push any change to a service repo — Jenkins will automatically:
 ### 6. Destroy Infrastructure (when done)
 
 ```bash
-cd terraform/
+git clone https://github.com/shamsmo0/Deploy-K8S-Cluster-in-AWS.git
+cd Deploy-K8S-Cluster-in-AWS/terraform/
 terraform destroy
 ```
 
