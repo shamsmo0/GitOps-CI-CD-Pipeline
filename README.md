@@ -1,254 +1,301 @@
-# GitOps-CI-CD-Pipeline# 🐾 PetClinic Microservices — GitOps CI/CD Pipeline
+# 🐾 PetClinic Microservices — GitOps CI/CD Pipeline
 
-> Automated deployment of a Spring Boot microservices application using Jenkins, Docker Hub, ArgoCD, and Kubernetes on AWS — provisioned with Terraform and Ansible.
+> Automated deployment of a Spring Boot microservices application using **Jenkins**, **Docker Hub**, **ArgoCD**, and **Kubernetes** on **AWS** — provisioned with **Terraform** and configured with **Ansible**.
 
 ---
 
-## 📐 Architecture Overview
+## 📋 Table of Contents
+
+- [Overview](#overview)
+- [Architecture](#architecture)
+- [Repositories](#repositories)
+- [Infrastructure](#infrastructure)
+- [CI/CD Pipeline](#cicd-pipeline)
+- [GitOps with ArgoCD](#gitops-with-argocd)
+- [Docker Images](#docker-images)
+- [Tech Stack](#tech-stack)
+- [Getting Started](#getting-started)
+
+---
+
+## Overview
+
+PetClinic is a classic Spring Boot application re-architected into **3 independent microservices** (A, B, C), each with its own GitHub repository, Dockerfile, and Kubernetes deployment. The entire lifecycle — from code commit to production deployment — is fully automated through a GitOps pipeline.
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                        DEVELOPER WORKFLOW                           │
-│                                                                     │
-│   Push Code → GitHub Repos → Jenkins CI → Docker Hub               │
-│                                    ↓                                │
-│              Jenkins updates image tag in GitOps Repo               │
-│                                    ↓                                │
-│              ArgoCD detects change → deploys to K8s                 │
-└─────────────────────────────────────────────────────────────────────┘
-```
-
-### Full Pipeline
-
-```
-GitHub (3 Service Repos)
-        │
-        │  webhook / poll
-        ▼
-Jenkins CI Server  ──── Jenkins Shared Library
-        │
-        │  1. Checkout Code
-        │  2. Maven Build
-        │  3. Run Tests
-        │  4. Package JAR
-        │  5. Build Docker Image
-        │  6. Push to Docker Hub
-        │  7. Update GitOps Repo (image tag)
-        ▼
-petclinic-gitops (GitHub)
-        │
-        │  ArgoCD watches every 3 min
-        ▼
-ArgoCD Server (on K8s Master)
-        │
-        │  Auto Sync + Self Heal
-        ▼
-Kubernetes Cluster (AWS)
-        │
-        ├── service-a pods (2 replicas)
-        ├── service-b pods (2 replicas)
-        └── service-c pods (2 replicas)
+Developer pushes code
+        ↓
+Jenkins CI builds, tests, and pushes Docker image
+        ↓
+Jenkins updates image tag in GitOps repo
+        ↓
+ArgoCD detects change and syncs to Kubernetes
+        ↓
+Kubernetes rolls out new pods automatically
 ```
 
 ---
 
-## 🗂️ Repositories
+## Architecture
 
-| Repository | Description | Link |
-|------------|-------------|------|
-| `petclinic-service-a` | Spring Boot microservice A | [GitHub](https://github.com/shamsmo0/-petclinic-service-a.git) |
-| `petclinic-service-b` | Spring Boot microservice B | [GitHub](https://github.com/shamsmo0/-petclinic-service-b.git) |
-| `petclinic-service-c` | Spring Boot microservice C | [GitHub](https://github.com/shamsmo0/-petclinic-service-c.git) |
-| `jenkins-shared-library` | Reusable Jenkins pipeline logic | [GitHub](https://github.com/shamsmo0/jenkins-shared-library.git) |
-| `petclinic-gitops` | K8s manifests — ArgoCD watches this | [GitHub](https://github.com/shamsmo0/petclinic-gitops.git) |
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    CI Pipeline (Jenkins)                     │
+│  Checkout → Maven Build → Test → Docker Build → Push → Sync │
+└─────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────┐
+│              GitOps Engine (petclinic-gitops)                │
+│         service-a/  │  service-b/  │  service-c/            │
+│       deployment.yaml             deployment.yaml            │
+└─────────────────────────────────────────────────────────────┘
+                              ↓  (ArgoCD watches)
+┌─────────────────────────────────────────────────────────────┐
+│              Kubernetes Cluster on AWS (kubeadm)             │
+│                                                              │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
+│  │  service-a   │  │  service-b   │  │  service-c   │      │
+│  │  (2 replicas)│  │  (2 replicas)│  │  (2 replicas)│      │
+│  └──────────────┘  └──────────────┘  └──────────────┘      │
+│                                                              │
+│              Nginx Ingress Controller                        │
+│     /service-a  │  /service-b  │  /service-c                │
+└─────────────────────────────────────────────────────────────┘
+```
 
 ---
 
-## 🐳 Docker Hub Images
+## Repositories
 
-| Image | Link |
-|-------|------|
-| `shamsmo0h/service-a` | [Docker Hub](https://hub.docker.com/repository/docker/shamsmo0h/service-a) |
-| `shamsmo0h/service-b` | [Docker Hub](https://hub.docker.com/repository/docker/shamsmo0h/service-b) |
-| `shamsmo0h/service-c` | [Docker Hub](https://hub.docker.com/repository/docker/shamsmo0h/service-c) |
+| Repository | Description |
+|------------|-------------|
+| [petclinic-service-a](https://github.com/shamsmo0/-petclinic-service-a.git) | Spring Boot microservice A — source code, Dockerfile, Jenkinsfile |
+| [petclinic-service-b](https://github.com/shamsmo0/-petclinic-service-b.git) | Spring Boot microservice B — source code, Dockerfile, Jenkinsfile |
+| [petclinic-service-c](https://github.com/shamsmo0/-petclinic-service-c.git) | Spring Boot microservice C — source code, Dockerfile, Jenkinsfile |
+| [jenkins-shared-library](https://github.com/shamsmo0/jenkins-shared-library.git) | Reusable Jenkins pipeline steps shared across all services |
+| [petclinic-gitops](https://github.com/shamsmo0/petclinic-gitops.git) | GitOps engine — Kubernetes manifests watched by ArgoCD |
 
 ---
 
-## ☁️ Infrastructure (AWS)
+## Infrastructure
 
-### Provisioning Stack
+The Kubernetes cluster is provisioned on **AWS** using a two-step IaC approach:
 
-| Tool | Role |
-|------|------|
-| **Terraform** | Provisions AWS infrastructure (VPC, Subnets, EC2, IAM, Security Groups) |
-| **Ansible** | Configures EC2 nodes — installs containerd, kubeadm, kubelet, kubectl |
+### Terraform — Infrastructure as Code
 
-### AWS Resources
+Provisions all AWS resources automatically:
 
-```
-AWS Account
-└── VPC (10.0.0.0/16)
-    └── Public Subnet (10.0.1.0/24)
-        ├── EC2 t3.medium — k8s-master     (Control Plane)
-        ├── EC2 t3.medium — k8s-worker-1   (Worker Node)
-        └── EC2 t3.medium — k8s-worker-2   (Worker Node)
-```
+- **VPC** with public subnet (`10.0.0.0/16`)
+- **Internet Gateway** and Route Tables
+- **Security Groups** with Kubernetes-specific port rules
+- **3 EC2 instances** (`t3.medium`): 1 master + 2 workers
+- **IAM roles** for EC2 instances
+- **30GB gp3 EBS volumes** per node
 
-### Kubernetes Cluster
+### Ansible — Configuration Management
 
-| Node | Role | Instance Type |
-|------|------|---------------|
-| `k8s-master` | Control Plane (API Server, etcd, Scheduler) | t3.medium |
-| `k8s-worker-1` | Worker Node | t3.medium |
-| `k8s-worker-2` | Worker Node | t3.medium |
+Configures the EC2 instances into a production-ready Kubernetes cluster:
 
-### Security Group — Open Ports
+- Disables swap, loads kernel modules, sets sysctl params
+- Installs `containerd`, `kubeadm`, `kubelet`, `kubectl`
+- Runs `kubeadm init` on the master node
+- Installs **Flannel CNI** for pod networking
+- Joins worker nodes to the cluster automatically
+
+### Cluster Topology
+
+| Node | Instance Type | Role |
+|------|--------------|------|
+| k8s-master | t3.medium | Control Plane (API Server, etcd, Scheduler, Controller Manager) |
+| k8s-worker-1 | t3.medium | Worker Node |
+| k8s-worker-2 | t3.medium | Worker Node |
+
+**AWS Region:** `us-east-1`
+
+### Security Group Port Rules
 
 | Port | Protocol | Purpose |
 |------|----------|---------|
-| 22 | TCP | SSH |
-| 8080 | TCP | Jenkins UI |
+| 22 | TCP | SSH access |
 | 6443 | TCP | Kubernetes API Server |
-| 31080 | TCP | ArgoCD UI (NodePort) |
-| 30000–32767 | TCP | Kubernetes NodePort Services |
-| 2379–2380 | TCP | etcd (internal) |
-| 10250–10252 | TCP | kubelet API (internal) |
+| 2379-2380 | TCP | etcd (internal) |
+| 10250-10252 | TCP | kubelet API (internal) |
 | 8472 | UDP | Flannel VXLAN (internal) |
+| 30000-32767 | TCP | NodePort Services |
+| 8080 | TCP | Jenkins Web UI |
+| 31080 | TCP | ArgoCD Web UI |
 
 ---
 
-## 🔧 Tech Stack
+## CI/CD Pipeline
 
-| Category | Technology |
-|----------|------------|
-| Language | Java 17 |
-| Framework | Spring Boot |
-| Build Tool | Maven |
-| Containerization | Docker |
-| Container Registry | Docker Hub |
-| CI Server | Jenkins |
-| Pipeline Logic | Jenkins Shared Library |
-| GitOps | ArgoCD |
-| Orchestration | Kubernetes v1.29 (kubeadm) |
-| CNI | Flannel / Calico |
-| IaC | Terraform |
-| Configuration Management | Ansible |
-| Cloud Provider | AWS (EC2, VPC, IAM) |
-| OS | Amazon Linux 2 |
-
----
-
-## 🚀 CI/CD Flow — Step by Step
-
-### Continuous Integration (Jenkins)
-
-1. Developer pushes code to one of the service repos
-2. Jenkins detects the change via webhook or polling
-3. Jenkins Shared Library runs the pipeline stages:
-   - `buildApp()` — Maven compile
-   - `runTests()` — Maven test
-   - `packageApp()` — Maven package (JAR)
-   - `buildDockerImage()` — Docker build
-   - `pushDockerImage()` — Docker push to Docker Hub
-   - `updateManifest()` — updates image tag in `petclinic-gitops`
-
-### Continuous Delivery (ArgoCD GitOps)
-
-1. ArgoCD watches `petclinic-gitops` repo every 3 minutes
-2. Detects new image tag in the deployment manifest
-3. Automatically syncs and applies the updated manifest to K8s
-4. Self-heals if any manual change is made to the cluster
-
----
-
-## 📁 GitOps Repo Structure (`petclinic-gitops`)
+Each service has a **Jenkinsfile** that uses the shared library and runs the following stages:
 
 ```
-petclinic-gitops/
-├── service-a/
-│   ├── deployment.yaml    ← image: shamsmo0h/service-a:<tag>
-│   └── service.yaml
-├── service-b/
-│   ├── deployment.yaml
-│   └── service.yaml
-├── service-c/
-│   ├── deployment.yaml
-│   └── service.yaml
-└── applications.yaml      ← ArgoCD Application manifests (all 3 services)
+1. Checkout       — Clone source code from GitHub
+2. Build          — mvn clean compile
+3. Test           — mvn test
+4. Package        — mvn package (produces JAR)
+5. Docker Build   — Build image tagged with build number
+6. Push           — Push to Docker Hub (shamsmo0h/<service>:latest)
+7. Update GitOps  — Update image tag in petclinic-gitops repo
+```
+
+### Jenkins Shared Library
+
+The `jenkins-shared-library` repo contains reusable Groovy steps used across all 3 service pipelines:
+
+| Function | Description |
+|----------|-------------|
+| `buildApp()` | Maven compile |
+| `runTests()` | Maven test |
+| `packageApp()` | Maven package (JAR) |
+| `buildDockerImage()` | Docker build + tag |
+| `pushDockerImage()` | Push to Docker Hub |
+| `deployToKubernetes()` | Update image tag in GitOps repo |
+
+---
+
+## GitOps with ArgoCD
+
+ArgoCD runs inside the Kubernetes cluster and watches the `petclinic-gitops` repository for any changes to Kubernetes manifests.
+
+### Applications
+
+| App | Source Path | Namespace | Sync Policy |
+|-----|-------------|-----------|-------------|
+| service-a | `service-a/` | default | Automated |
+| service-b | `service-b/` | default | Automated |
+| service-c | `service-c/` | default | Automated |
+
+### Sync Features
+
+- ✅ **Auto-sync** — detects and applies changes automatically
+- ✅ **Self-heal** — reverts any manual changes made directly to the cluster
+- ✅ **Prune** — removes Kubernetes resources deleted from Git
+
+### Access ArgoCD UI
+
+```
+http://<MASTER_IP>:31080
+Username: admin
+Password: kubectl get secret argocd-initial-admin-secret -n argocd -o jsonpath="{.data.password}" | base64 -d
 ```
 
 ---
 
-## 🛠️ How to Reproduce This Setup
+## Docker Images
+
+All images are hosted on Docker Hub under `shamsmo0h`:
+
+| Service | Docker Hub |
+|---------|-----------|
+| service-a | [shamsmo0h/service-a](https://hub.docker.com/repository/docker/shamsmo0h/service-a) |
+| service-b | [shamsmo0h/service-b](https://hub.docker.com/repository/docker/shamsmo0h/service-b) |
+| service-c | [shamsmo0h/service-c](https://hub.docker.com/repository/docker/shamsmo0h/service-c) |
+
+Base image: `eclipse-temurin:17-jre-alpine`
+
+---
+
+## Tech Stack
+
+| Tool | Version | Purpose |
+|------|---------|---------|
+| Java | 17 | Application runtime |
+| Spring Boot | 3.x | Microservices framework |
+| Maven | 3.x | Build and test tool |
+| Docker | latest | Containerization |
+| Kubernetes | v1.29 | Container orchestration (kubeadm) |
+| Jenkins | latest | CI server |
+| ArgoCD | latest | GitOps continuous delivery |
+| Terraform | >= 1.5 | AWS infrastructure provisioning |
+| Ansible | latest | K8s cluster configuration |
+| AWS EC2 | t3.medium | Cloud compute nodes |
+| Flannel | latest | Kubernetes CNI plugin |
+| Nginx Ingress | latest | HTTP ingress controller |
+| GitHub | — | Source code + GitOps engine |
+| Docker Hub | — | Container image registry |
+
+---
+
+## Getting Started
 
 ### Prerequisites
 
-- AWS account with IAM user (Access Key + Secret Key)
-- AWS Key Pair (.pem file)
-- Local machine with: `terraform`, `ansible`, `aws-cli`, `kubectl`
+- AWS account with CLI configured (`aws configure`)
+- Terraform >= 1.5
+- Ansible + `boto3` (`pip3 install ansible boto3`)
+- `kubectl` installed locally
+- SSH key pair created in AWS
 
-### Step 1 — Provision Infrastructure
+### 1. Provision AWS Infrastructure
 
 ```bash
-git clone https://github.com/shamsmo0/petclinic-gitops.git
 cd terraform/
 terraform init
+terraform plan
 terraform apply
-# exports IPs to ansible/inventory.ini automatically
 ```
 
-### Step 2 — Configure the Cluster
+### 2. Configure Kubernetes Cluster
 
 ```bash
-cd ansible/
+# Generate Ansible inventory from Terraform outputs
+terraform output -raw ansible_inventory > ../ansible/inventory.ini
+
+# Run Ansible playbook
+cd ../ansible/
+ansible all -i inventory.ini -m ping
 ansible-playbook -i inventory.ini site.yml
 ```
 
-### Step 3 — Install Jenkins on Master
+### 3. Verify Cluster
 
 ```bash
-ssh -i ~/.ssh/k8s.pem ec2-user@<MASTER_IP>
-sudo yum install -y fontconfig dejavu-sans-fonts java-17-openjdk jenkins
-sudo systemctl start jenkins
+kubectl get nodes
+# NAME           STATUS   ROLES           AGE
+# k8s-master     Ready    control-plane
+# k8s-worker-1   Ready    <none>
+# k8s-worker-2   Ready    <none>
 ```
 
-### Step 4 — Deploy ArgoCD
-
-```bash
-kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
-kubectl patch svc argocd-server -n argocd -p '{"spec": {"type": "NodePort"}}'
-```
-
-### Step 5 — Apply ArgoCD Applications
+### 4. Deploy ArgoCD Applications
 
 ```bash
 kubectl apply -f applications.yaml
+kubectl get applications -n argocd
 ```
 
-### Step 6 — Configure Jenkins
+### 5. Trigger the Pipeline
 
-- Add Docker Hub credentials (`dockerhub-creds`)
-- Add GitHub credentials (`github-creds`)
-- Add `jenkins-shared-library` as a Global Shared Library
-- Create Multibranch Pipeline jobs for each service
+Push any change to a service repo — Jenkins will automatically:
+1. Build and test the application
+2. Build and push the Docker image
+3. Update the image tag in `petclinic-gitops`
+4. ArgoCD will detect the change and deploy
 
----
+### 6. Destroy Infrastructure (when done)
 
-## 🌐 Access
-
-| Service | URL |
-|---------|-----|
-| Jenkins | `http://<MASTER_IP>:8080` |
-| ArgoCD | `http://<MASTER_IP>:31080` |
-| Service A | `http://<MASTER_IP>:<NODEPORT>/service-a` |
-| Service B | `http://<MASTER_IP>:<NODEPORT>/service-b` |
-| Service C | `http://<MASTER_IP>:<NODEPORT>/service-c` |
+```bash
+cd terraform/
+terraform destroy
+```
 
 ---
 
-## 👤 Author
+## Full Flow Summary
 
-**Shams** — AWS & DevOps Engineer
-- GitHub: [@shamsmo0](https://github.com/shamsmo0)
-- Docker Hub: [shamsmo0h](https://hub.docker.com/u/shamsmo0h)
+```
+1.  Developer pushes code to service repo on GitHub
+2.  Jenkins Multibranch Pipeline triggers automatically
+3.  Maven builds and tests the Spring Boot application
+4.  Docker image built and tagged with build number
+5.  Image pushed to Docker Hub (shamsmo0h/<service>:BUILD_NUMBER)
+6.  Jenkins clones petclinic-gitops and updates image tag
+7.  Jenkins pushes updated manifest back to GitHub
+8.  ArgoCD detects change in petclinic-gitops (every 3 min)
+9.  ArgoCD syncs updated manifests to Kubernetes cluster
+10. Kubernetes performs rolling update with zero downtime
+11. Service accessible via Nginx Ingress at /service-a|b|c
+```
